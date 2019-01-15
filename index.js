@@ -1,0 +1,193 @@
+const fs = require('fs-extra')
+const filter = require('lodash/filter')
+const includes = require('lodash/includes')
+const isString = require('lodash/isString')
+const isFunction = require('lodash/isFunction')
+const { extname } = require('path')
+
+function InjectTwigWebpackPlugin(options) {
+    this.options = options
+    options.chunks = options.chunks || []
+    options.more = options.more || {}
+    options.auto = options.auto || false
+    options.startJS = options.startJS || '<!-- start:js -->'
+    options.endJS = options.endJS || '<!-- end:js -->'
+    options.startCSS = options.startCSS || '<!-- start:css -->'
+    options.endCSS = options.endCSS || '<!-- end:css -->'
+    options.transducer = options.transducer || ''
+    this.runing = false
+}
+
+function assetsOfChunks(chunks, selected) {
+    let assets = {
+        js: [],
+        css: []
+    }
+    filter(chunks, chunk => includes(selected, chunk.name)).forEach(chunk => {
+        chunk.files.forEach(file => {
+            let ext = extname(file).replace('.', '')
+            assets[ext] && assets[ext].push(file)
+        })
+    })
+    return assets
+}
+
+function injectWithinByIndentifier(
+    html,
+    startIdentifier,
+    endIdentifier,
+    content,
+    purified
+) {
+    let start = html.indexOf(startIdentifier)
+    let end = html.indexOf(endIdentifier)
+    if (start < 0 || end < 0) {
+        return html
+    }
+    let previousInnerContent = html.substring(start + startIdentifier.length, end)
+    let indent = leadingWhitespace(previousInnerContent)
+    indent = indent.replace(/(\n[\s|\t]*\r*\n)/g, '\n')
+    let injected = Array.isArray(content) ? content.slice() : [content]
+    purified
+        ? injected.unshift(html.substr(0, start))
+        : injected.unshift(html.substr(0, start + startIdentifier.length))
+    purified
+        ? injected.push(html.substr(end + endIdentifier.length))
+        : injected.push(html.substr(end))
+    return injected.join(indent)
+}
+
+function injectWithin(html, content, head = true) {
+    let before = head ? html.indexOf('</head>') : html.indexOf('</body>')
+    if (before < 0) return html
+    let injected = Array.isArray(content) ? content.slice() : [content]
+    injected.unshift(html.substr(0, before))
+    injected.push(html.substr(before))
+    return injected.join('\n')
+}
+
+function applyTransducer(originURL, transducer) {
+    let url = originURL
+    if (typeof transducer === 'string') {
+        url = transducer + originURL
+    } else if (typeof transducer === 'function') {
+        typeof transducer(originURL) === 'string' && (url = transducer(originURL))
+    }
+    return url
+}
+
+function leadingWhitespace(str) {
+    return str.match(/^\s*/)[0]
+}
+
+InjectTwigWebpackPlugin.prototype.apply = function (compiler) {
+    let that = this
+    let options = that.options
+    let filename = options.filename
+    let output =
+        isString(options.output) || isFunction(options.output)
+            ? options.output
+            : false
+    let purified = !!output
+    let selected = options.chunks
+    let more = options.more
+    let transducer = options.transducer
+    let autoInject = options.auto
+    let startInjectJS = options.startJS
+    let endInjectJS = options.endJS
+    let startInjectCSS = options.startCSS
+    let endInjectCSS = options.endCSS
+    let emit = function (compilation, callback = () => { }) {
+        let chunks = compilation.chunks
+        let html
+        if (that.runing) {
+            callback()
+            return
+        }
+        if (!options.filename) {
+            callback()
+            return
+        }
+        let assets = assetsOfChunks(chunks, selected)
+
+        let jsLabel = assets['js'].map(function (v) {
+            return '{% do view.registerJsFile(siteUrl ~ "' + applyTransducer(v, transducer) + '") %}'
+        })
+        let cssLabel = assets['css'].map(function (v) {
+            return (
+                '{% do view.registerCssFile(siteUrl ~ "' + applyTransducer(v, transducer) + '") %}'
+            )
+        })
+        if (more) {
+            if (Array.isArray(more.js)) {
+                for (let i = 0; i < more.js.length; i++) {
+                    jsLabel.unshift('{% do view.registerJsFile(siteUrl ~ "' + more.js[i] + '") %}')
+                }
+            }
+            if (Array.isArray(more.css)) {
+                for (var j = 0; j < more.css.length; j++) {
+                    cssLabel.unshift(
+                        '{% do view.registerCssFile(siteUrl ~ "' + more.css[j] + '") %}'
+                    )
+                }
+            }
+        }
+        if (isString(output) && output) {
+            try {
+                fs.copySync(filename, output)
+                filename = output
+            } catch (e) {
+                compilation.errors.push(
+                    new Error('InjectTwigWebpackPlugin copy filename to output failed')
+                )
+            }
+        }
+
+        function injector(filename) {
+            try {
+                html = fs.readFileSync(filename, 'utf8')
+            } catch (e) {
+                compilation.errors.push(
+                    new Error('InjectTwigWebpackPlugin read filename failed')
+                )
+                callback()
+                return
+            }
+            if (autoInject) {
+                html = injectWithin(html, jsLabel, false)
+                html = injectWithin(html, cssLabel)
+            } else {
+                html = injectWithinByIndentifier(
+                    html,
+                    startInjectJS,
+                    endInjectJS,
+                    jsLabel,
+                    purified
+                )
+                html = injectWithinByIndentifier(
+                    html,
+                    startInjectCSS,
+                    endInjectCSS,
+                    cssLabel,
+                    purified
+                )
+            }
+
+            return html
+        }
+        if (isFunction(output)) {
+            output(filename, injector)
+        } else {
+            fs.writeFileSync(filename, injector(filename))
+        }
+        that.runing = true
+        callback()
+    }
+    if (compiler.hooks) {
+        compiler.hooks.emit.tap('InjectTwigWebpackPlugin', emit)
+    } else {
+        compiler.plugin('emit', emit)
+    }
+}
+
+module.exports = InjectTwigWebpackPlugin

@@ -1,0 +1,19 @@
+{
+  "name": "inject-twig-webpack-plugin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://https://github.com/JamesNuttall/InjectTwigWebpackPlugin.git"
+  },
+  "author": "James Nuttall",
+  "license": "MIT",
+  "dependencies": {
+    "fs-extra": "^1.0.0",
+    "lodash": "^4.17.5"
+  }
+}
