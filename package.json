@@ -15,5 +15,10 @@
   "dependencies": {
     "fs-extra": "^1.0.0",
     "lodash": "^4.17.5"
-  }
+  },
+  "keywords": [
+    "webpack",
+    "html",
+    "twig"
+  ]
 }
