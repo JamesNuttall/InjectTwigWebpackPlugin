@@ -2,7 +2,8 @@ inject-twig-webpack-plugin
 ===
 
 [![NPM](https://nodei.co/npm/inject-twig-webpack-plugin.png)](https://nodei.co/npm/inject-twig-webpack-plugin/)
-based off [inject-html-webpack-plugin](https://github.com/ali322/inject-html-webpack-plugin)
+
+based off [inject-html-webpack-plugin](https://github.com/ali322/inject-html-webpack-plugin). Takes js/css files and using the twig view.register syntax injects the files.
 
 Install
 ===
