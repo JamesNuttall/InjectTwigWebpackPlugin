@@ -53,8 +53,6 @@ then add below placeholders into html file
 <head>
   <meta charset="UTF-8">
   <title>Document</title>
-  <!-- start:css -->
-  <!-- end:css -->
 </head>
 <body>
   <!-- start:js -->
