@@ -39,7 +39,7 @@ module.exports = {
                 return "/assets/js/vue/dist/"+filename;
             },
             filename: '../../../../templates/_layout/_footer.html',
-            chunks:['filters']
+            chunks:['index']
         })
     ]
 }
@@ -66,7 +66,7 @@ Output
 
 ```
 <!-- start:js --> 
-{% do view.registerJsFile(siteUrl ~ "/assets/js/vue/dist/filters.c38144da9d3ebd917778.js") %}
+{% do view.registerJsFile(siteUrl ~ "/assets/js/vue/dist/index.c38144da9d3ebd917778.js") %}
 <!-- end:js -->
 ```
 
